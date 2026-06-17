@@ -1,0 +1,116 @@
+name: Full CI/CD Pipeline
+
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  devsecops-deploy:
+    runs-on: ubuntu-latest
+
+
+    defaults:
+      run:
+        working-directory: .
+
+
+    steps:
+      ##################################################
+      # Checkout
+      ##################################################
+
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+
+      ##################################################
+      # Setup Node
+      ##################################################
+
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+
+      ##################################################
+      # Install Dependencies
+      ##################################################
+
+
+      - name: Install Dependencies
+        working-directory: .
+        run: npm install
+
+
+      ##################################################
+      # Run Tests
+      ##################################################
+
+
+      - name: Run Tests
+        working-directory: .
+        run: npm test
+
+      ##################################################
+      # Install Snyk
+      ##################################################
+
+
+      - name: Install Snyk
+        run: npm install -g snyk
+
+
+      ##################################################
+      # Authenticate Snyk
+      ##################################################
+
+
+      - name: Snyk Auth
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+
+      ##################################################
+      # Run Security Scan
+      ##################################################
+
+
+      - name: Snyk Scan
+        working-directory: .
+        run: snyk test --severity-threshold=medium
+  
+
+
+      ## Deploy to Vercel ##
+
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+
+      - name: Pull Vercel Environment Information
+        run: |
+          vercel pull --yes \
+            --environment=production \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+
+
+
+      - name: Deploy Project to Vercel
+        run: |
+          vercel deploy --prod --yes \
+            --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+
